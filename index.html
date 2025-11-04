@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>คำนวณค่าใช้จ่ายตีแบด (ปรับปรุง)</title>
+<style>
+body { font-family: sans-serif; padding: 20px; background: #f2f2f2; }
+h2 { text-align: center; }
+label { display: block; margin-top: 10px; }
+input { width: 100%; padding: 8px; margin-top: 5px; font-size: 16px; }
+button { margin-top: 15px; padding: 10px; width: 100%; font-size: 16px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+button:hover { background: #45a049; }
+.result { background: white; padding: 15px; margin-top: 15px; border-radius: 5px; white-space: pre-line; border: 1px solid #ddd;}
+.note { margin-top: 10px; font-size: 0.9em; color: #666; text-align: center;}
+</style>
+</head>
+<body>
+
+<h2>📊 คำนวณค่าใช้จ่ายตีแบด (ปรับปรุง)</h2>
+
+<label>วันที่</label>
+<input type="date" id="playDate">
+
+<label>จำนวนคนทั้งหมด</label>
+<input type="number" id="numPeople" value="0">
+
+<label>จำนวนคนที่มาตี 1 ชั่วโมง (คนละ 50 บาท)</label>
+<input type="number" id="numOneHour" value="0">
+
+<label>ราคาคอร์ท/ชั่วโมง</label>
+<input type="number" id="courtRate" value="150">
+
+<label>จำนวนชั่วโมง</label>
+<input type="number" id="hours" value="0">
+
+<label>ราคาลูกชุดที่1 (12 ลูก)ใส่ราคาต่อหลอด</label>
+<input type="number" id="shuttleRate1" value="0">
+
+<label>จำนวนลูกที่ใช้ ชุดที่ 1 (ใส่จำนวนลูก)</label>
+<input type="number" id="numShuttle1" value="0">
+
+<label>ราคาลูกชุดที่1 (12 ลูก)ใส่ราคาต่อหลอด</label>
+<input type="number" id="shuttleRate2" value="0">
+
+<label>จำนวนลูกที่ใช้ชุดที่ 2 (ใส่จำนวนลูก)</label>
+<input type="number" id="numShuttle2" value="0">
+
+<button onclick="calculate()">คำนวณ</button>
+
+<div class="result" id="result">ผลลัพธ์จะแสดงที่นี่</div>
+<div class="note"></div>
+
+<button onclick="copySummary()">📋 คัดลอกสรุปเพื่อส่งแชท</button>
+
+<script>
+// ตั้งวันที่เป็นวันนี้อัตโนมัติ
+window.onload = function() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+    document.getElementById('playDate').value = yyyy + '-' + mm + '-' + dd;
+}
+
+let summaryText = "";
+
+function calculate() {
+    const date = document.getElementById('playDate').value;
+    const numPeople = parseFloat(document.getElementById('numPeople').value) || 0;
+    const numOneHour = parseFloat(document.getElementById('numOneHour').value) || 0;
+    const courtRate = parseFloat(document.getElementById('courtRate').value) || 0;
+    const hours = parseFloat(document.getElementById('hours').value) || 0;
+    
+    // ราคาต่อหลอด -> ราคาต่อลูก
+    const shuttleRate1Tube = parseFloat(document.getElementById('shuttleRate1').value) || 0;
+    const shuttleRate2Tube = parseFloat(document.getElementById('shuttleRate2').value) || 0;
+    const shuttleRate1PerPiece = shuttleRate1Tube / 12; // ไม่ปัดเศษ
+    const shuttleRate2PerPiece = shuttleRate2Tube / 12; // ไม่ปัดเศษ
+    
+    const numShuttle1 = parseFloat(document.getElementById('numShuttle1').value) || 0;
+    const numShuttle2 = parseFloat(document.getElementById('numShuttle2').value) || 0;
+
+    // คำนวณยอดรวม (ไม่ปัดเศษในขั้นตอนย่อย)
+    const totalCourt = courtRate * hours;
+    const totalShuttle = (shuttleRate1PerPiece * numShuttle1) + (shuttleRate2PerPiece * numShuttle2);
+    const totalBeforeOneHour = totalCourt + totalShuttle;
+
+    const oneHourCost = numOneHour * 50;
+    const totalAdjusted = totalBeforeOneHour - oneHourCost;
+    
+    const remainingPeople = numPeople - numOneHour;
+    
+    // ค่าใช้จ่ายต่อคน: ปัดขึ้น (Math.ceil) เพื่อเก็บเงินจริง
+    const perPerson = remainingPeople > 0 ? Math.ceil(totalAdjusted / remainingPeople) : 0; 
+    
+    // สร้างสรุปผล (แสดงเป็นทศนิยม 2 ตำแหน่ง)
+    summaryText =
+`📅 วันที่: ${date}
+👥️️ จำนวนคนทั้งหมด : ${numPeople} คน
+👤 จำนวนคนที่ต้องหารเฉลี่ย : ${remainingPeople} คน
+👤 จำนวนคนที่ตี 1 ชั่วโมง : ${numOneHour}คน
+---
+💸 ค่าใช้จ่ายรวม (ยังไม่หัก 1 ชม.)
+🏸 ค่าคอร์ท : ${totalCourt.toFixed(2)} บาท
+🪶 ค่าลูก (1): ${shuttleRate1PerPiece.toFixed(2)} บาท/ลูก x ${numShuttle1} ลูก = ${(shuttleRate1PerPiece * numShuttle1).toFixed(2)} บาท
+🪶 ค่าลูก (2): ${shuttleRate2PerPiece.toFixed(2)} บาท/ลูก x ${numShuttle2} ลูก = ${(shuttleRate2PerPiece * numShuttle2).toFixed(2)} บาท
+🪶 ค่าลูกทั้งหมด : ${totalShuttle.toFixed(2)} บาท
+💰 รวมยอดทั้งหมด : ${totalBeforeOneHour.toFixed(2)} บาท
+---
+💵 หักคนที่มาตี 1 ชั่วโมง (50 บาท/คน) : ${oneHourCost.toFixed(2)} บาท
+💰 รวมยอดหลังหักคนตี 1 ชม : ${totalAdjusted.toFixed(2)} บาท
+
+---
+👤 จำนวนคนที่ตี 1 ชั่วโมง จ่าย 50 บาท : ${numOneHour}คน
+💸 ค่าใช้จ่ายต่อคน : ${perPerson} บาท `;
+
+    document.getElementById('result').textContent = summaryText;
+}
+
+function copySummary() {
+    if (!summaryText) { alert("กรุณาคำนวณก่อนคัดลอก"); return; }
+    // ปรับการคัดลอกให้ใช้ \n เพื่อให้ขึ้นบรรทัดใหม่ในแชทได้ดีขึ้น
+    const copyText = summaryText.replace(/ /g, '\u00A0'); // แทนที่ช่องว่างปกติด้วย No-Break Space เพื่อรักษารูปแบบ
+    navigator.clipboard.writeText(copyText).then(() => {
+        alert("คัดลอกสรุปเรียบร้อย! พร้อมส่งในแชท");
+    }, () => alert("คัดลอกไม่สำเร็จ"));
+}
+</script>
+
+</body>
+</html>
